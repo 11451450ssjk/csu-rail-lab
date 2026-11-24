@@ -3366,7 +3366,8 @@ function drawAdvancedChart() {
   if (!state.data) return;
   const points = state.data.points;
   const analysis = state.data.analysis;
-  const padding = { left: 50, right: 22, top: 22, bottom: 34 };
+  const experiment = currentExperiment();
+  const padding = { left: 62, right: 28, top: 42, bottom: 50 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
   const xMin = Math.min(...points.map((point) => point.x));
@@ -3380,14 +3381,38 @@ function drawAdvancedChart() {
   const mapX = (x) => padding.left + ((x - xMin) / spanX) * plotWidth;
   const mapY = (y) => padding.top + (1 - (y - yMin) / (yMax - yMin)) * plotHeight;
 
+  chartContext.fillStyle = "#fbf7ed";
+  chartContext.fillRect(0, 0, width, height);
   chartContext.save();
-  chartContext.strokeStyle = "rgba(201, 224, 210, 0.11)";
-  chartContext.fillStyle = "#929c97";
+  for (let x = padding.left; x <= width - padding.right; x += 8) {
+    const major = (x - padding.left) % 40 === 0;
+    chartContext.strokeStyle = major ? "rgba(205, 120, 78, 0.24)" : "rgba(215, 151, 111, 0.1)";
+    chartContext.lineWidth = major ? 0.8 : 0.45;
+    chartContext.beginPath();
+    chartContext.moveTo(x, padding.top);
+    chartContext.lineTo(x, height - padding.bottom);
+    chartContext.stroke();
+  }
+  for (let y = padding.top; y <= height - padding.bottom; y += 8) {
+    const major = (y - padding.top) % 40 === 0;
+    chartContext.strokeStyle = major ? "rgba(205, 120, 78, 0.24)" : "rgba(215, 151, 111, 0.1)";
+    chartContext.lineWidth = major ? 0.8 : 0.45;
+    chartContext.beginPath();
+    chartContext.moveTo(padding.left, y);
+    chartContext.lineTo(width - padding.right, y);
+    chartContext.stroke();
+  }
+  chartContext.restore();
+
+  chartContext.save();
+  chartContext.strokeStyle = "#3b3932";
+  chartContext.fillStyle = "#47453e";
   chartContext.font = '9.5px "Cascadia Code", Consolas, monospace';
+  chartContext.lineWidth = 1.2;
   chartContext.textAlign = "right";
   chartContext.textBaseline = "middle";
-  for (let index = 0; index <= 4; index += 1) {
-    const value = yMin + ((yMax - yMin) * index) / 4;
+  for (let index = 0; index <= 5; index += 1) {
+    const value = yMin + ((yMax - yMin) * index) / 5;
     const y = mapY(value);
     chartContext.beginPath();
     chartContext.moveTo(padding.left, y);
@@ -3397,52 +3422,111 @@ function drawAdvancedChart() {
   }
   chartContext.textAlign = "center";
   chartContext.textBaseline = "top";
-  for (let index = 0; index <= 4; index += 1) {
-    const value = xMin + (spanX * index) / 4;
+  for (let index = 0; index <= 5; index += 1) {
+    const value = xMin + (spanX * index) / 5;
     chartContext.fillText(compactNumber(value), mapX(value), height - padding.bottom + 10);
   }
   chartContext.restore();
 
-  const area = chartContext.createLinearGradient(0, padding.top, 0, height - padding.bottom);
-  area.addColorStop(0, "rgba(198, 157, 94, 0.2)");
-  area.addColorStop(1, "rgba(198, 157, 94, 0.008)");
+  chartContext.save();
+  chartContext.strokeStyle = "rgba(96, 74, 54, 0.35)";
+  chartContext.lineWidth = 1;
   chartContext.beginPath();
-  points.forEach((point, index) => {
-    if (index === 0) chartContext.moveTo(mapX(point.x), mapY(point.y));
-    else chartContext.lineTo(mapX(point.x), mapY(point.y));
-  });
-  chartContext.lineTo(mapX(points.at(-1).x), height - padding.bottom);
-  chartContext.lineTo(mapX(points[0].x), height - padding.bottom);
-  chartContext.closePath();
-  chartContext.fillStyle = area;
-  chartContext.fill();
-
-  chartContext.beginPath();
-  points.forEach((point, index) => {
-    if (index === 0) chartContext.moveTo(mapX(point.x), mapY(point.y));
-    else chartContext.lineTo(mapX(point.x), mapY(point.y));
-  });
-  chartContext.strokeStyle = "#d1aa6d";
-  chartContext.lineWidth = 2.2;
-  chartContext.lineJoin = "round";
+  chartContext.moveTo(padding.left, padding.top);
+  chartContext.lineTo(padding.left, height - padding.bottom);
+  chartContext.lineTo(width - padding.right, height - padding.bottom);
   chartContext.stroke();
+  chartContext.restore();
 
-  points.forEach((point) => {
+  if (analysis.peaks.length < 2 && analysis.r2 >= 0.6) {
+    chartContext.save();
+    chartContext.beginPath();
+    chartContext.moveTo(mapX(xMin), mapY(analysis.slope * xMin + analysis.intercept));
+    chartContext.lineTo(mapX(xMax), mapY(analysis.slope * xMax + analysis.intercept));
+    chartContext.strokeStyle = "rgba(34, 84, 111, 0.72)";
+    chartContext.lineWidth = 1.8;
+    chartContext.setLineDash([7, 5]);
+    chartContext.stroke();
+    chartContext.restore();
+  } else {
+    chartContext.save();
+    chartContext.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) chartContext.moveTo(mapX(point.x), mapY(point.y));
+      else chartContext.lineTo(mapX(point.x), mapY(point.y));
+    });
+    chartContext.strokeStyle = "rgba(37, 48, 40, 0.82)";
+    chartContext.lineWidth = 1.8;
+    chartContext.lineJoin = "round";
+    chartContext.stroke();
+    chartContext.restore();
+  }
+
+  points.forEach((point, index) => {
     const isOutlier = analysis.outliers.includes(point);
     chartContext.beginPath();
-    chartContext.fillStyle = isOutlier ? "#d78361" : "#151b1e";
-    chartContext.strokeStyle = isOutlier ? "#e09b73" : "#d1aa6d";
-    chartContext.lineWidth = 1.3;
-    chartContext.arc(mapX(point.x), mapY(point.y), isOutlier ? 3.7 : 2.5, 0, Math.PI * 2);
+    chartContext.fillStyle = isOutlier ? "#b54f3e" : "#e9e2d2";
+    chartContext.strokeStyle = isOutlier ? "#9b3429" : "#30372f";
+    chartContext.lineWidth = 1.1;
+    chartContext.arc(mapX(point.x), mapY(point.y), isOutlier ? 3.2 : 2.5, 0, Math.PI * 2);
     chartContext.fill();
     chartContext.stroke();
   });
+
+  const maxPoint = points.reduce((best, point) => point.y > best.y ? point : best, points[0]);
+  const minPoint = points.reduce((best, point) => point.y < best.y ? point : best, points[0]);
+  const annotate = [...new Set([points[0], maxPoint, minPoint, points.at(-1), ...analysis.outliers.slice(0, 2)])].slice(0, 6);
+  chartContext.save();
+  chartContext.font = '8px "Microsoft YaHei UI", sans-serif';
+  chartContext.fillStyle = "#51483b";
+  chartContext.strokeStyle = "rgba(82, 72, 58, 0.28)";
+  chartContext.lineWidth = 0.7;
+  annotate.forEach((point, index) => {
+    const x = mapX(point.x);
+    const y = mapY(point.y);
+    const labelText = `(${compactNumber(point.x)}, ${compactNumber(point.y)})`;
+    const offsetX = x > width - 120 ? -10 : x < padding.left + 60 ? 10 : index % 2 ? -8 : 8;
+    const offsetY = y < padding.top + 20 ? 14 : y > height - padding.bottom - 20 ? -14 : index % 3 === 0 ? -10 : 12;
+    chartContext.beginPath();
+    chartContext.moveTo(x, y);
+    chartContext.lineTo(x + offsetX, y + offsetY);
+    chartContext.stroke();
+    chartContext.textAlign = offsetX < 0 ? "right" : "left";
+    chartContext.textBaseline = offsetY < 0 ? "bottom" : "top";
+    chartContext.fillText(labelText, x + offsetX, y + offsetY);
+  });
+  chartContext.restore();
+
+  chartContext.save();
+  chartContext.fillStyle = "#3e403a";
+  chartContext.font = '600 10px "Microsoft YaHei UI", sans-serif';
+  chartContext.textAlign = "left";
+  chartContext.fillText(`${experiment.name} · ${state.data.yHeader} / ${state.data.xHeader}`, padding.left, 16);
+  chartContext.font = '8px "Microsoft YaHei UI", sans-serif';
+  chartContext.fillStyle = "#786c5b";
+  chartContext.fillText(`n=${analysis.n} · R²=${formatNumber(analysis.r2, 3)} · 黑点=实验均值`, width - padding.right, 16);
+  chartContext.save();
+  chartContext.translate(17, padding.top + plotHeight / 2);
+  chartContext.rotate(-Math.PI / 2);
+  chartContext.textAlign = "center";
+  chartContext.fillText(state.data.yHeader, 0, 0);
+  chartContext.restore();
+  chartContext.fillText(state.data.xHeader, padding.left + plotWidth / 2, height - 17);
+  chartContext.restore();
+
+  document.getElementById("chart-description").textContent =
+    `图 1：${experiment.name}实验数据与${analysis.peaks.length >= 2 ? "实验曲线" : "拟合趋势"}；横轴为${state.data.xHeader}，纵轴为${state.data.yHeader}。`;
+  document.getElementById("download-chart").disabled = false;
 }
 
-function applySyntheticVariation(rows, options = {}) {
+function applySyntheticVariation(rows, options = {}, xHeader = "横轴", yHeader = "响应值") {
   if (rows.length < 3) return rows;
   const noisePercent = clamp(Number(options.noise ?? 2), 0, 30);
   const outlierCount = clamp(Math.round(Number(options.outliers ?? 1)), 0, 10);
+  const repeatCount = clamp(Math.round(Number(options.repeats ?? 1)), 1, 6);
+  const biasPercent = clamp(Number(options.bias ?? 0), -5, 5);
+  const resolutionDigits = clamp(Math.round(Number(options.resolution ?? 3)), 0, 6);
+  const resolutionScale = 10 ** resolutionDigits;
   const yValues = rows.slice(1).map((row) => Number(row[1]));
   const finite = yValues.filter(Number.isFinite);
   const minY = Math.min(...finite);
@@ -3450,21 +3534,40 @@ function applySyntheticVariation(rows, options = {}) {
   const range = Math.max(1e-9, maxY - minY);
   const meanAbs = Math.max(1e-9, finite.reduce((total, value) => total + Math.abs(value), 0) / finite.length);
   const seed = Number(options.seed || Date.now() % 100000);
-  rows.slice(1).forEach((row, index) => {
+  const dataRows = rows.slice(1);
+  const outlierIndices = new Set();
+  for (let outlier = 0; outlier < outlierCount; outlier += 1) {
+    outlierIndices.add(Math.min(dataRows.length - 1, Math.floor(((outlier + 1) / (outlierCount + 1)) * dataRows.length)));
+  }
+  const outputRows = [[xHeader, `${yHeader}_mean`, `${yHeader}_std`, ...Array.from({ length: repeatCount }, (_, index) => `Repeat_${index + 1}`), "Condition"]];
+  dataRows.forEach((row, index) => {
     const base = Number(row[1]);
     if (!Number.isFinite(base)) return;
-    const pseudo = Math.sin((index + 1) * 12.9898 + seed * 0.001) * 43758.5453;
-    const unitNoise = (pseudo - Math.floor(pseudo)) * 2 - 1;
+    const drift = 1 + (index / Math.max(1, dataRows.length - 1) - 0.5) * 0.004;
+    const biasedBase = base * (1 + biasPercent / 100) * drift;
     const noiseScale = Math.max(range * 0.015, meanAbs) * noisePercent / 100;
-    row[1] = Number((base + unitNoise * noiseScale).toFixed(6));
+    const trials = Array.from({ length: repeatCount }, (_, trial) => {
+      const pseudo = Math.sin((index + 1) * 12.9898 + (trial + 1) * 78.233 + seed * 0.001) * 43758.5453;
+      const unitNoise = (pseudo - Math.floor(pseudo)) * 2 - 1;
+      let measured = biasedBase + unitNoise * noiseScale;
+      if (outlierIndices.has(index) && trial === repeatCount - 1) {
+        measured += (index % 2 === 0 ? 1 : -1) * range * 0.22;
+      }
+      return Math.round(measured * resolutionScale) / resolutionScale;
+    });
+    const mean = trials.reduce((total, value) => total + value, 0) / trials.length;
+    const std = trials.length > 1
+      ? Math.sqrt(trials.reduce((total, value) => total + (value - mean) ** 2, 0) / (trials.length - 1))
+      : 0;
+    outputRows.push([
+      row[0],
+      mean.toFixed(resolutionDigits),
+      std.toFixed(Math.max(1, resolutionDigits)),
+      ...trials.map((value) => value.toFixed(resolutionDigits)),
+      `模型值 ${Number(row[1]).toFixed(resolutionDigits)}`
+    ]);
   });
-  for (let outlier = 0; outlier < outlierCount; outlier += 1) {
-    const index = 1 + Math.floor(((outlier + 1) / (outlierCount + 1)) * (rows.length - 1));
-    const row = rows[Math.min(rows.length - 1, index)];
-    const direction = outlier % 2 === 0 ? 1 : -1;
-    row[1] = Number((Number(row[1]) + direction * range * (0.22 + outlier * 0.03)).toFixed(6));
-  }
-  return rows;
+  return outputRows;
 }
 
 function createSampleCsv(experiment, generationOptions = {}) {
@@ -3478,9 +3581,9 @@ function createSampleCsv(experiment, generationOptions = {}) {
     });
     if (railSample) {
       const rows = railSample.csv.split(/\r?\n/).map((line) => line.split(","));
-      applySyntheticVariation(rows, generationOptions);
+      const synthesized = applySyntheticVariation(rows, generationOptions, railSample.xHeader, railSample.yHeader);
       return {
-        csv: rows.map((row) => row.join(",")).join("\n"),
+        csv: synthesized.map((row) => row.join(",")).join("\n"),
         xHeader: railSample.xHeader || info.xLabel,
         yHeader: railSample.yHeader || info.yLabel,
         units: railSample.units || ""
@@ -3560,11 +3663,11 @@ function createSampleCsv(experiment, generationOptions = {}) {
     }
     rows.push([x.toFixed(4), y.toFixed(4)]);
   }
-  applySyntheticVariation(rows, generationOptions);
   rows[0] = [xHeader, yHeader];
+  const synthesizedRows = applySyntheticVariation(rows, generationOptions, xHeader, yHeader);
   const units = `采样条件：${config.primary.label} = ${formatNumber(state.primary, 2)} ${config.primary.unit}；${config.secondary.label} = ${formatNumber(state.secondary, 2)} ${config.secondary.unit}`;
   return {
-    csv: rows.map((row) => row.join(",")).join("\n"),
+    csv: synthesizedRows.map((row) => row.join(",")).join("\n"),
     xHeader,
     yHeader,
     units
@@ -3577,13 +3680,16 @@ function ingestData(text, sourceName) {
   createReportRecord(true);
 }
 
-function loadSmartSample(options = { points: 42, noise: 2, outliers: 1 }) {
+function loadSmartSample(options = { points: 42, noise: 2, outliers: 1, repeats: 3, bias: 0.5, resolution: 3 }) {
   const experiment = currentExperiment();
   const sample = createSampleCsv(experiment, options);
   state.pendingSyntheticMeta = {
     points: Number(options.points || 42),
     noise: Number(options.noise || 0),
     outliers: Number(options.outliers || 0),
+    repeats: Number(options.repeats || 1),
+    bias: Number(options.bias || 0),
+    resolution: Number(options.resolution || 3),
     experiment: experiment.name,
     generatedAt: new Date().toISOString()
   };
@@ -3593,7 +3699,7 @@ function loadSmartSample(options = { points: 42, noise: 2, outliers: 1 }) {
   }
   ingestData(
     sample.csv,
-    `自主生成_${experiment.name}_${options.points || 42}点_${Number(options.noise || 0)}pct.csv`
+    `自主生成_${experiment.name}_${options.points || 42}点_${Number(options.noise || 0)}pct_${Number(options.repeats || 1)}重复.csv`
   );
   showToast(`已生成 ${experiment.name} 自主数据和新报告`);
 }
@@ -3611,6 +3717,48 @@ function createUniqueReportId() {
   ].join("");
   const random = Math.random().toString(16).slice(2, 6).toUpperCase();
   return `RPT-${stamp}-${random}`;
+}
+
+const REPORT_IDENTITY_KEY = "csu_rail_report_identity_v1";
+
+function loadReportIdentity() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(REPORT_IDENTITY_KEY) || "{}");
+    return {
+      name: String(stored.name || ""),
+      studentId: String(stored.studentId || ""),
+      className: String(stored.className || ""),
+      group: String(stored.group || ""),
+      teacher: String(stored.teacher || "")
+    };
+  } catch {
+    return { name: "", studentId: "", className: "", group: "", teacher: "" };
+  }
+}
+
+function readReportIdentityForm() {
+  const identity = {
+    name: document.getElementById("report-student-name").value.trim(),
+    studentId: document.getElementById("report-student-id").value.trim(),
+    className: document.getElementById("report-student-class").value.trim(),
+    group: document.getElementById("report-student-group").value.trim(),
+    teacher: document.getElementById("report-teacher").value.trim()
+  };
+  try {
+    localStorage.setItem(REPORT_IDENTITY_KEY, JSON.stringify(identity));
+  } catch {
+    showToast("浏览器无法保存报告信息");
+  }
+  return identity;
+}
+
+function fillReportIdentityForm() {
+  const identity = loadReportIdentity();
+  document.getElementById("report-student-name").value = identity.name;
+  document.getElementById("report-student-id").value = identity.studentId;
+  document.getElementById("report-student-class").value = identity.className;
+  document.getElementById("report-student-group").value = identity.group;
+  document.getElementById("report-teacher").value = identity.teacher;
 }
 
 function createReportRecord(auto = false) {
@@ -3639,6 +3787,10 @@ function createReportRecord(auto = false) {
       rawX: point.rawX,
       rawY: point.rawY
     })),
+    dataTable: state.parsed ? {
+      headers: state.parsed.headers.slice(),
+      rows: state.parsed.body.map((row) => row.slice())
+    } : null,
     parameters: {
       primaryLabel: controlConfig(experiment).primary.label,
       primaryValue: state.primary,
@@ -3649,6 +3801,7 @@ function createReportRecord(auto = false) {
     },
     photoInfo: state.photoInfo,
     syntheticMeta: state.pendingSyntheticMeta,
+    identity: readReportIdentityForm(),
     report: ""
   };
   record.report = buildReportText(record);
@@ -3670,6 +3823,7 @@ function buildReportText(record) {
   const operation = operationProfile(experiment);
   const analysis = record.analysis;
   const createdAt = new Date(record.createdAt);
+  const identity = record.identity || { name: "", studentId: "", className: "", group: "", teacher: "" };
   const dateText = createdAt.toLocaleString("zh-CN", {
     year: "numeric",
     month: "long",
@@ -3703,7 +3857,7 @@ function buildReportText(record) {
     ? `${record.photoInfo.fileName}；尺寸 ${record.photoInfo.width} × ${record.photoInfo.height} px；亮度${record.photoInfo.brightness}；清晰度${record.photoInfo.sharpness}。`
     : "本次报告未附加实验照片。";
   const syntheticText = record.syntheticMeta
-    ? `本报告数据由软件按“${record.syntheticMeta.experiment}”模型自主生成，共 ${record.syntheticMeta.points} 点，噪声水平约 ${record.syntheticMeta.noise}%，注入异常点 ${record.syntheticMeta.outliers} 个。该数据适用于教学演示与报告流程测试，不能替代真实测量。`
+    ? `本报告数据由软件按“${record.syntheticMeta.experiment}”模型自主生成，共 ${record.syntheticMeta.points} 个测量条件，每个条件重复 ${record.syntheticMeta.repeats} 次；随机噪声约 ${record.syntheticMeta.noise}%，系统偏差约 ${record.syntheticMeta.bias}%，注入异常点 ${record.syntheticMeta.outliers} 个，读数保留 ${record.syntheticMeta.resolution} 位小数。报告采用各条件重复测量的均值，并同步保留重复值。该数据适用于教学演示与报告流程测试，不能替代真实测量。`
     : "";
   const points = Array.isArray(record.dataPoints) && record.dataPoints.length
     ? record.dataPoints
@@ -3715,6 +3869,29 @@ function buildReportText(record) {
       .map((point, index) => `| ${index + 1} | ${point.rawX ?? point.x} | ${point.rawY ?? point.y} |`)
       .join("\n")
     : "| — | 原始数据未随历史报告保存 | — |";
+  const reportTableHeaders = record.dataTable?.headers?.length
+    ? record.dataTable.headers
+    : [record.xHeader, record.yHeader];
+  const reportTableSourceRows = record.dataTable?.rows?.length
+    ? record.dataTable.rows
+    : points.map((point) => [point.rawX ?? point.x, point.rawY ?? point.y]);
+  const reportTableSample = reportTableSourceRows.length > 20
+    ? [...reportTableSourceRows.slice(0, 10), null, ...reportTableSourceRows.slice(-10)]
+    : reportTableSourceRows;
+  const escapeMarkdownCell = (value) => String(value ?? "").replaceAll("|", "\\|").replaceAll("\n", " ");
+  const reportDataTable = [
+    `| 序号 | ${reportTableHeaders.map(escapeMarkdownCell).join(" | ")} |`,
+    `| --- | ${reportTableHeaders.map(() => "---").join(" | ")} |`,
+    ...reportTableSample.map((row, index) =>
+      row
+        ? `| ${index + 1} | ${row.map(escapeMarkdownCell).join(" | ")} |`
+        : `| … | ${reportTableHeaders.map(() => "…").join(" | ")} |`
+    )
+  ].join("\n");
+  const firstPoint = points[0];
+  const calculationExample = firstPoint
+    ? `以首个有效数据点为例：${record.xHeader} = ${compactNumber(firstPoint.x)}，${record.yHeader} = ${compactNumber(firstPoint.y)}。${analysis.peaks.length < 2 && analysis.r2 >= 0.6 ? `按线性趋势计算，拟合值 ŷ = ${compactNumber(analysis.slope)} × ${compactNumber(firstPoint.x)} + ${compactNumber(analysis.intercept)} = ${compactNumber(analysis.slope * firstPoint.x + analysis.intercept)}，残差为 ${compactNumber(firstPoint.y - (analysis.slope * firstPoint.x + analysis.intercept))}。` : `当前数据更适合用实验曲线描述，理论关系为 ${experiment.formula}，应将原始读数与模型曲线逐点比较。`} 平均值、标准差和不确定度由全部有效数据计算。`
+    : "尚无可用于展示计算过程的原始数据点。";
   const outlierRows = analysis.outliers.length
     ? analysis.outliers.slice(0, 8).map((point, index) =>
       `| ${index + 1} | ${point.rawX ?? point.x} | ${point.rawY ?? point.y} | ${compactNumber((point.y - analysis.mean) / Math.max(1e-12, analysis.std))}σ |`
@@ -3782,7 +3959,13 @@ ${record.parameters.secondaryLabel}：${formatNumber(record.parameters.secondary
 | --- | --- |
 | 报告编号 | ${record.id} |
 | 实验名称 | ${experiment.name} |
+| 姓名 | ${identity.name || "未填写"} |
+| 学号 | ${identity.studentId || "未填写"} |
+| 班级 | ${identity.className || "未填写"} |
+| 组别 | ${identity.group || "未填写"} |
+| 指导教师 | ${identity.teacher || "未填写"} |
 | 实验批次 | ${record.batchName} |
+| 报告日期 | ${dateText} |
 | 数据来源 | ${record.sourceName} |
 | 有效数据点 | ${analysis.n} |
 | 当前参数 | ${parameterText.replace(/\n/g, "；")} |
@@ -3834,6 +4017,17 @@ ${recordRequirements}
 
 ${syntheticText ? `${syntheticText}\n` : ""}
 数据质量评分仅用于提示样本数量、异常点比例和趋势可解释性，不代替教师审核，也不等同于测量不确定度。
+
+### 6.1 原始数据记录
+${reportDataTable}
+
+> 若数据行数超过 20 行，上表保留前 10 行和后 10 行；完整数据保存在原始 CSV 中。
+
+### 6.2 计算示例
+${calculationExample}
+
+### 6.3 图形说明
+图 1 使用横轴“${record.xHeader}”和纵轴“${record.yHeader}”绘制，圆点为实验均值，红色点表示统计异常值，虚线表示线性拟合趋势。图形应与原始记录表共同使用，不得只引用拟合结果。
 
 ## 七、统计处理与模型诊断
 | 指标 | 计算结果 |
@@ -4038,6 +4232,29 @@ function downloadActiveReport() {
   showToast("报告已下载");
 }
 
+function downloadChartImage() {
+  if (!state.data) {
+    showToast("请先导入或生成实验数据");
+    return;
+  }
+  chartCanvas.toBlob((blob) => {
+    if (!blob) {
+      showToast("图像生成失败");
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const safeName = currentExperiment().name.replace(/[\\/:*?"<>|]/g, "_");
+    anchor.href = url;
+    anchor.download = `${safeName}_图1_${Date.now()}.png`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast("实验图像已下载");
+  }, "image/png");
+}
+
 function analyzePhoto(file) {
   if (!file || !file.type.startsWith("image/")) {
     showToast("请选择有效图片");
@@ -4195,7 +4412,10 @@ function setupDataControls() {
     const options = {
       points: Number(document.getElementById("generation-points").value) || 42,
       noise: Number(document.getElementById("generation-noise").value) || 0,
-      outliers: Number(document.getElementById("generation-outliers").value) || 0
+      outliers: Number(document.getElementById("generation-outliers").value) || 0,
+      repeats: Number(document.getElementById("generation-repeats").value) || 1,
+      bias: Number(document.getElementById("generation-bias").value) || 0,
+      resolution: Number(document.getElementById("generation-resolution").value) || 3
     };
     loadSmartSample(options);
   });
@@ -4249,8 +4469,21 @@ function setupDataControls() {
 }
 
 function setupReportControls() {
+  fillReportIdentityForm();
+  [
+    "report-student-name",
+    "report-student-id",
+    "report-student-class",
+    "report-student-group",
+    "report-teacher"
+  ].forEach((id) => {
+    document.getElementById(id).addEventListener("input", () => {
+      readReportIdentityForm();
+    });
+  });
   document.getElementById("copy-advanced-report").addEventListener("click", copyActiveReport);
   document.getElementById("download-advanced-report").addEventListener("click", downloadActiveReport);
+  document.getElementById("download-chart").addEventListener("click", downloadChartImage);
   window.addEventListener("resize", () => {
     drawLabFrame(performance.now());
     drawAdvancedChart();

@@ -527,6 +527,18 @@
                   <span>异常点数</span>
                   <input id="generation-outliers" type="number" min="0" max="10" value="1">
                 </label>
+                <label>
+                  <span>每组重复次数</span>
+                  <input id="generation-repeats" type="number" min="1" max="6" value="3">
+                </label>
+                <label>
+                  <span>系统偏差 / %</span>
+                  <input id="generation-bias" type="number" min="-5" max="5" step="0.1" value="0.5">
+                </label>
+                <label>
+                  <span>读数有效小数</span>
+                  <input id="generation-resolution" type="number" min="0" max="6" value="3">
+                </label>
                 <button class="primary-button" id="generate-custom-data">生成数据并写报告</button>
               </div>
               <p>数据由当前实验模型和参数生成，适合软件演示、报告模板测试和教学练习；用于真实研究时必须替换为实测数据。</p>
@@ -586,6 +598,10 @@
             <div class="chart-axis-labels">
               <span id="chart-x-label">横轴变量</span>
               <span id="chart-y-label">响应值</span>
+            </div>
+            <div class="chart-export-row">
+              <span id="chart-description">导入数据后生成实验点、拟合曲线和坐标网格。</span>
+              <button class="secondary-button small" id="download-chart" disabled>下载图像 PNG</button>
             </div>
           </div>
         </div>
@@ -832,6 +848,18 @@
             <h2>报告生成与历史版本</h2>
           </div>
           <p>每份报告绑定实验、批次、数据统计和生成时间，可单独复制与下载。</p>
+        </div>
+        <div class="report-identity-card">
+          <div>
+            <span class="eyebrow">REPORT IDENTITY</span>
+            <strong>实验报告信息</strong>
+            <p>仅保存在当前浏览器，并自动写入新建报告。</p>
+          </div>
+          <label><span>姓名</span><input id="report-student-name" type="text" placeholder="实验人姓名"></label>
+          <label><span>学号</span><input id="report-student-id" type="text" placeholder="学号"></label>
+          <label><span>班级</span><input id="report-student-class" type="text" placeholder="班级"></label>
+          <label><span>组别</span><input id="report-student-group" type="text" placeholder="第几组"></label>
+          <label><span>指导教师</span><input id="report-teacher" type="text" placeholder="指导教师"></label>
         </div>
         <div class="report-studio">
           <article class="advanced-report-panel">
