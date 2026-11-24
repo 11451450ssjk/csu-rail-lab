@@ -332,6 +332,51 @@
             </article>
           </div>
         </section>
+
+        <section class="operation-dossier" id="operation-dossier">
+          <div class="operation-dossier-heading">
+            <div>
+              <span class="eyebrow">PROCEDURE & EQUIPMENT</span>
+              <h3>实验准备、仪器需求与操作流程</h3>
+              <p id="operation-subtitle">按当前实验加载仪器配置和操作步骤</p>
+            </div>
+            <div class="operation-progress">
+              <span id="operation-progress-text">0 / 0 已完成</span>
+              <div class="operation-progress-track"><i id="operation-progress-bar"></i></div>
+            </div>
+          </div>
+          <div class="operation-grid">
+            <article class="operation-card">
+              <div class="operation-card-title">
+                <span>01</span>
+                <div><h4>仪器与技术条件</h4><p>使用前确认量程、精度、校准状态和安全条件</p></div>
+              </div>
+              <div id="instrument-requirements" class="instrument-requirements"></div>
+            </article>
+            <article class="operation-card">
+              <div class="operation-card-title">
+                <span>02</span>
+                <div><h4>操作步骤清单</h4><p>完成一步勾选一步，进度保存在当前浏览器</p></div>
+                <button class="text-button" id="reset-operation">重置</button>
+              </div>
+              <div id="operation-steps" class="operation-steps"></div>
+            </article>
+          </div>
+          <div class="operation-requirements">
+            <article>
+              <span>数据记录要求</span>
+              <ul id="operation-records"></ul>
+            </article>
+            <article>
+              <span>安全与合规</span>
+              <p id="operation-safety"></p>
+            </article>
+            <article>
+              <span>开始测量前</span>
+              <p>确认仪器已校准、测点布置正确、数据文件命名完整，并保留原始记录。未完成的操作项不会被软件视为已执行。</p>
+            </article>
+          </div>
+        </section>
       </section>
 
       <section class="data-section" id="data-section">
@@ -350,7 +395,7 @@
                 <span class="panel-index">DATA</span>
                 <h3>实验数据文件</h3>
               </div>
-              <button class="text-button" id="load-smart-sample">生成示例数据</button>
+              <button class="text-button" id="load-smart-sample">快速生成</button>
             </div>
             <label class="advanced-drop" id="data-drop">
               <input type="file" id="data-file" accept=".csv,.txt,text/csv">
@@ -369,6 +414,31 @@
               <textarea id="data-text" rows="7" spellcheck="false" placeholder="时间_ms,电压_V&#10;0,0.02&#10;10,0.35&#10;20,0.82"></textarea>
               <button class="secondary-button small" id="parse-data">解析并生成报告</button>
             </details>
+            <div class="auto-generation-panel">
+              <div class="auto-generation-heading">
+                <div>
+                  <span>AUTO DATA</span>
+                  <strong>按当前实验自主生成数据</strong>
+                </div>
+                <span>生成后自动写入新报告</span>
+              </div>
+              <div class="auto-generation-grid">
+                <label>
+                  <span>数据点数</span>
+                  <input id="generation-points" type="number" min="10" max="300" value="42">
+                </label>
+                <label>
+                  <span>随机噪声 / %</span>
+                  <input id="generation-noise" type="number" min="0" max="30" step="0.5" value="2">
+                </label>
+                <label>
+                  <span>异常点数</span>
+                  <input id="generation-outliers" type="number" min="0" max="10" value="1">
+                </label>
+                <button class="primary-button" id="generate-custom-data">生成数据并写报告</button>
+              </div>
+              <p>数据由当前实验模型和参数生成，适合软件演示、报告模板测试和教学练习；用于真实研究时必须替换为实测数据。</p>
+            </div>
             <div class="mapping-row">
               <label>
                 <span>横轴列</span>
@@ -799,6 +869,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="railway_catalog.js"></script>
   <script src="railway_sim.js"></script>
+  <script src="railway_operations.js"></script>
   <script src="app.js"></script>
   <script src="online_data.js"></script>
   <script src="research.js"></script>

@@ -450,6 +450,7 @@ const state = {
   reports: [],
   activeReportId: null,
   photoInfo: null,
+  pendingSyntheticMeta: null,
   filterYear: "all",
   search: ""
 };
@@ -601,6 +602,86 @@ function principleInfo(experiment = currentExperiment()) {
     caution: "遵守实验室安全规范和仪器额定参数。",
     observations: "关注响应趋势、重复性和异常值，并与理论关系对照。"
   };
+}
+
+function operationProfile(experiment = currentExperiment()) {
+  const profile = window.RAILWAY_OPERATION_PROFILES?.[experiment.sim];
+  if (profile) return profile;
+  return {
+    instruments: [
+      { name: "实验仪器与数据采集设备", spec: "量程、精度和校准状态满足实验要求", use: "完成测量与数据记录" },
+      { name: "安全防护用品", spec: "符合实验室及现场要求", use: "保障人员和设备安全" }
+    ],
+    steps: principleInfo(experiment).steps,
+    records: ["实验日期与人员", "仪器编号与参数", "原始读数", "环境条件"],
+    safety: principleInfo(experiment).caution
+  };
+}
+
+function operationProgressKey(experimentId) {
+  return `csu_rail_operation_${experimentId}`;
+}
+
+function getOperationProgress(experimentId) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(operationProgressKey(experimentId)) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOperationProgress(experimentId, completed) {
+  try {
+    localStorage.setItem(operationProgressKey(experimentId), JSON.stringify([...new Set(completed)].sort((a, b) => a - b)));
+  } catch {
+    showToast("浏览器无法保存操作进度");
+  }
+}
+
+function renderOperationProfile(experiment = currentExperiment()) {
+  const profile = operationProfile(experiment);
+  const completed = new Set(getOperationProgress(experiment.id));
+  document.getElementById("operation-subtitle").textContent = `${experiment.name} · ${profile.instruments.length} 类仪器 · ${profile.steps.length} 个操作步骤`;
+  document.getElementById("instrument-requirements").innerHTML = profile.instruments.map((item, index) => `
+    <div class="instrument-item">
+      <i>${String(index + 1).padStart(2, "0")}</i>
+      <div>
+        <strong>${escapeHtml(item.name)}</strong>
+        <small>${escapeHtml(item.spec)}</small>
+        <em>${escapeHtml(item.use)}</em>
+      </div>
+    </div>
+  `).join("");
+  document.getElementById("operation-steps").innerHTML = profile.steps.map((step, index) => `
+    <label class="operation-step">
+      <input type="checkbox" data-operation-step="${index}" ${completed.has(index) ? "checked" : ""}>
+      <span>${escapeHtml(step.replaceAll("{name}", experiment.name))}</span>
+    </label>
+  `).join("");
+  document.getElementById("operation-records").innerHTML = profile.records
+    .map((record) => `<li>${escapeHtml(record)}</li>`)
+    .join("");
+  document.getElementById("operation-safety").textContent = profile.safety;
+  const updateProgress = () => {
+    const checked = [...document.querySelectorAll("[data-operation-step]:checked")]
+      .map((input) => Number(input.dataset.operationStep));
+    saveOperationProgress(experiment.id, checked);
+    const percent = profile.steps.length ? checked.length / profile.steps.length * 100 : 0;
+    document.getElementById("operation-progress-text").textContent = `${checked.length} / ${profile.steps.length} 已完成`;
+    document.getElementById("operation-progress-bar").style.width = `${percent}%`;
+  };
+  document.querySelectorAll("[data-operation-step]").forEach((input) => {
+    input.addEventListener("change", updateProgress);
+  });
+  document.getElementById("reset-operation").onclick = () => {
+    document.querySelectorAll("[data-operation-step]").forEach((input) => {
+      input.checked = false;
+    });
+    updateProgress();
+    showToast("操作进度已重置");
+  };
+  updateProgress();
 }
 
 function sceneGuide(experiment = currentExperiment()) {
@@ -2793,6 +2874,7 @@ function selectExperiment(experimentId, scrollToLab = false) {
     `<span><i class="legend-amber"></i> ${escapeHtml(config.secondary.label)}</span>`
   ].join("");
   updateSimulationStory();
+  renderOperationProfile(experiment);
   primaryControl.min = config.primary.min;
   primaryControl.max = config.primary.max;
   primaryControl.step = config.primary.step;
@@ -3216,21 +3298,55 @@ function drawAdvancedChart() {
   });
 }
 
-function createSampleCsv(experiment) {
+function applySyntheticVariation(rows, options = {}) {
+  if (rows.length < 3) return rows;
+  const noisePercent = clamp(Number(options.noise ?? 2), 0, 30);
+  const outlierCount = clamp(Math.round(Number(options.outliers ?? 1)), 0, 10);
+  const yValues = rows.slice(1).map((row) => Number(row[1]));
+  const finite = yValues.filter(Number.isFinite);
+  const minY = Math.min(...finite);
+  const maxY = Math.max(...finite);
+  const range = Math.max(1e-9, maxY - minY);
+  const meanAbs = Math.max(1e-9, finite.reduce((total, value) => total + Math.abs(value), 0) / finite.length);
+  const seed = Number(options.seed || Date.now() % 100000);
+  rows.slice(1).forEach((row, index) => {
+    const base = Number(row[1]);
+    if (!Number.isFinite(base)) return;
+    const pseudo = Math.sin((index + 1) * 12.9898 + seed * 0.001) * 43758.5453;
+    const unitNoise = (pseudo - Math.floor(pseudo)) * 2 - 1;
+    const noiseScale = Math.max(range * 0.015, meanAbs) * noisePercent / 100;
+    row[1] = Number((base + unitNoise * noiseScale).toFixed(6));
+  });
+  for (let outlier = 0; outlier < outlierCount; outlier += 1) {
+    const index = 1 + Math.floor(((outlier + 1) / (outlierCount + 1)) * (rows.length - 1));
+    const row = rows[Math.min(rows.length - 1, index)];
+    const direction = outlier % 2 === 0 ? 1 : -1;
+    row[1] = Number((Number(row[1]) + direction * range * (0.22 + outlier * 0.03)).toFixed(6));
+  }
+  return rows;
+}
+
+function createSampleCsv(experiment, generationOptions = {}) {
   const info = simInfo(experiment);
   const config = controlConfig(experiment);
+  const sampleCount = clamp(Math.round(Number(generationOptions.points || 42)), 10, 300);
   if (window.RailwaySim && window.RailwaySim.sample) {
-    const railSample = window.RailwaySim.sample(experiment.sim, state.primary, state.secondary, experiment, state);
+    const railSample = window.RailwaySim.sample(experiment.sim, state.primary, state.secondary, experiment, state, {
+      ...generationOptions,
+      points: sampleCount
+    });
     if (railSample) {
+      const rows = railSample.csv.split(/\r?\n/).map((line) => line.split(","));
+      applySyntheticVariation(rows, generationOptions);
       return {
-        csv: railSample.csv,
+        csv: rows.map((row) => row.join(",")).join("\n"),
         xHeader: railSample.xHeader || info.xLabel,
         yHeader: railSample.yHeader || info.yLabel,
         units: railSample.units || ""
       };
     }
   }
-  const n = 42;
+  const n = sampleCount;
   const sim = experiment.sim;
   const xHeader = info.xLabel;
   const yHeader = info.yLabel;
@@ -3303,6 +3419,7 @@ function createSampleCsv(experiment) {
     }
     rows.push([x.toFixed(4), y.toFixed(4)]);
   }
+  applySyntheticVariation(rows, generationOptions);
   rows[0] = [xHeader, yHeader];
   const units = `采样条件：${config.primary.label} = ${formatNumber(state.primary, 2)} ${config.primary.unit}；${config.secondary.label} = ${formatNumber(state.secondary, 2)} ${config.secondary.unit}`;
   return {
@@ -3319,10 +3436,25 @@ function ingestData(text, sourceName) {
   createReportRecord(true);
 }
 
-function loadSmartSample() {
-  const sample = createSampleCsv(currentExperiment());
-  ingestData(sample.csv, `示例_${currentExperiment().name}.csv`);
-  showToast(`已生成 ${currentExperiment().name} 示例数据和新报告`);
+function loadSmartSample(options = { points: 42, noise: 2, outliers: 1 }) {
+  const experiment = currentExperiment();
+  const sample = createSampleCsv(experiment, options);
+  state.pendingSyntheticMeta = {
+    points: Number(options.points || 42),
+    noise: Number(options.noise || 0),
+    outliers: Number(options.outliers || 0),
+    experiment: experiment.name,
+    generatedAt: new Date().toISOString()
+  };
+  const batchInput = document.getElementById("batch-name");
+  if (!batchInput.value.trim()) {
+    batchInput.value = `自主生成-${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}`;
+  }
+  ingestData(
+    sample.csv,
+    `自主生成_${experiment.name}_${options.points || 42}点_${Number(options.noise || 0)}pct.csv`
+  );
+  showToast(`已生成 ${experiment.name} 自主数据和新报告`);
 }
 
 function createUniqueReportId() {
@@ -3375,6 +3507,7 @@ function createReportRecord(auto = false) {
       secondaryUnit: controlConfig(experiment).secondary.unit
     },
     photoInfo: state.photoInfo,
+    syntheticMeta: state.pendingSyntheticMeta,
     report: ""
   };
   record.report = buildReportText(record);
@@ -3385,13 +3518,15 @@ function createReportRecord(auto = false) {
   renderReportHistory();
   showReportRecord(record);
   showToast(auto ? "数据已导入，并生成新的报告版本" : "已用当前数据创建新报告版本");
+  state.pendingSyntheticMeta = null;
   return record;
 }
 
 function buildReportText(record) {
   const experiment = EXPERIMENTS.find((item) => item.id === record.experimentId) || currentExperiment();
-  const info = SIM_INFO[experiment.sim] || SIM_INFO.measurement;
+  const info = simInfo(experiment);
   const principle = principleInfo(experiment);
+  const operation = operationProfile(experiment);
   const analysis = record.analysis;
   const createdAt = new Date(record.createdAt);
   const dateText = createdAt.toLocaleString("zh-CN", {
@@ -3426,6 +3561,9 @@ function buildReportText(record) {
   const photoText = record.photoInfo
     ? `${record.photoInfo.fileName}；尺寸 ${record.photoInfo.width} × ${record.photoInfo.height} px；亮度${record.photoInfo.brightness}；清晰度${record.photoInfo.sharpness}。`
     : "本次报告未附加实验照片。";
+  const syntheticText = record.syntheticMeta
+    ? `本报告数据由软件按“${record.syntheticMeta.experiment}”模型自主生成，共 ${record.syntheticMeta.points} 点，噪声水平约 ${record.syntheticMeta.noise}%，注入异常点 ${record.syntheticMeta.outliers} 个。该数据适用于教学演示与报告流程测试，不能替代真实测量。`
+    : "";
   const points = Array.isArray(record.dataPoints) && record.dataPoints.length
     ? record.dataPoints
     : state.data && state.data.sourceName === record.sourceName
@@ -3459,9 +3597,14 @@ function buildReportText(record) {
   } else {
     comparisonText = "这是该实验在当前浏览器中记录的第一个详细版本，暂无同实验历史批次可供比较。完成重复测量后，系统会自动生成版本间对比。";
   }
-  const procedureText = principle.steps
+  const procedureText = operation.steps
+    .map((step) => step.replaceAll("{name}", experiment.name))
     .map((step, index) => `${index + 1}. ${step}`)
     .join("\n");
+  const operationInstruments = operation.instruments
+    .map((item) => `- ${item.name}：${item.spec}；用途：${item.use}`)
+    .join("\n");
+  const recordRequirements = operation.records.map((recordItem) => `- ${recordItem}`).join("\n");
   const parameterText = record.parameters
     ? `${record.parameters.primaryLabel}：${formatNumber(record.parameters.primaryValue, 3)} ${record.parameters.primaryUnit}
 ${record.parameters.secondaryLabel}：${formatNumber(record.parameters.secondaryValue, 3)} ${record.parameters.secondaryUnit}`
@@ -3524,13 +3667,19 @@ ${principle.observations}
 ## 四、仪器与实验条件
 ${principle.apparatus}
 
+本实验建议配置：
+${operationInstruments}
+
 本次记录对应的软件仿真或测量参数如下：
 - ${parameterText.replace(/\n/g, "\n- ")}
 
-真实实验还应补充仪器编号、量程、环境温度、湿度、光源功率、采集软件版本和校准日期。
+真实实验还应补充仪器编号、量程、环境温度、湿度、设备校准日期和采集软件版本。
 
 ## 五、推荐实验步骤
 ${procedureText}
+
+实验过程必须记录以下信息：
+${recordRequirements}
 
 实际执行时，应在每一步后确认仪器状态和数据是否合理，再进入下一步。出现异常读数时先停止采集并记录现场条件。
 
@@ -3542,6 +3691,7 @@ ${procedureText}
 - 数据来源：${record.sourceName}
 - 实验照片检查：${photoText}
 
+${syntheticText ? `${syntheticText}\n` : ""}
 数据质量评分仅用于提示样本数量、异常点比例和趋势可解释性，不代替教师审核，也不等同于测量不确定度。
 
 ## 七、统计处理与模型诊断
@@ -3583,7 +3733,7 @@ ${outlierText}
 
 如果仪器说明书给出了 B 类不确定度、分辨率或校准证书，还应将其与 A 类不确定度合成。系统没有自动读取真实仪器证书，因此报告中的标准误差不能替代完整的测量不确定度评定。
 
-${principle.caution}
+${operation.safety || principle.caution}
 
 ## 十、改进建议
 ${info.improvements}
@@ -3899,7 +4049,15 @@ function setupDataControls() {
     });
     event.currentTarget.textContent = shouldExpand ? "收起全部" : "展开全部";
   });
-  document.getElementById("load-smart-sample").addEventListener("click", loadSmartSample);
+  document.getElementById("load-smart-sample").addEventListener("click", () => loadSmartSample());
+  document.getElementById("generate-custom-data").addEventListener("click", () => {
+    const options = {
+      points: Number(document.getElementById("generation-points").value) || 42,
+      noise: Number(document.getElementById("generation-noise").value) || 0,
+      outliers: Number(document.getElementById("generation-outliers").value) || 0
+    };
+    loadSmartSample(options);
+  });
   document.getElementById("parse-data").addEventListener("click", () => {
     const text = document.getElementById("data-text").value.trim();
     if (!text) {

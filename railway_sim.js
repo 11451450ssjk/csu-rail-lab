@@ -734,7 +734,7 @@
     }
   }
 
-  function sample(sim, primary, secondary) {
+  function sample(sim, primary, secondary, experiment, state, options = {}) {
     const config = {
       survey: ["测段序号", "高差偏差(mm)"],
       material: ["龄期(d)", "强度(MPa)"],
@@ -753,7 +753,7 @@
     }[sim];
     if (!config) return null;
     const rows = [config];
-    const n = 42;
+    const n = clamp(Math.round(Number(options.points || 42)), 10, 300);
     for (let index = 0; index < n; index += 1) {
       const p = index / (n - 1);
       let x;
