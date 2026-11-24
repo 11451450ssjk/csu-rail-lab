@@ -319,9 +319,44 @@
     ])
   ];
 
+  const ELECTRICAL_COURSES = [
+    course("electrical-measurement", 1, 2, "电工测量与电路基础实验", "万用表、示波器、信号源、网络定理、电桥和动态电路", [
+      e("multimeter", "万用表与基本电学量测量", "circuit", "U = IR", "练习直流电压、电流、电阻测量和量程选择。", "数字万用表通过模数转换显示电学量，电压表并联、电流表串联，仪表内阻会影响读数。"),
+      e("oscilloscope", "示波器原理与波形测量", "oscilloscope", "f = 1/T", "完成探头补偿、触发设置，测量周期、频率、峰峰值和相位。", "示波器按时间采样输入电压，利用触发稳定周期波形。"),
+      e("signal-source", "信号发生器与直流电源使用", "oscilloscope", "y(t) = A sin(2πft + φ)", "设置正弦、方波、幅值、偏置和频率并用示波器核验。", "信号源产生可调波形，输出阻抗和负载会改变实际电压幅值。"),
+      e("kirchhoff-electrical", "基尔霍夫定律与叠加定理", "circuit", "ΣI=0，ΣU=0", "测量多回路电路的节点电流、回路电压并验证线性叠加。", "集中参数电路满足电荷守恒和能量守恒，线性多源响应可分别计算后叠加。"),
+      e("thevenin-electrical", "戴维南与诺顿等效电路", "circuit", "Uoc = IscRth", "测量含源二端网络开路电压、短路电流和等效电阻。", "任何线性含源二端网络都可用开路电压和内阻串联模型等效。"),
+      e("wheatstone-basic", "惠斯登电桥测量未知电阻", "circuit", "Rx = R1R3/R2", "调节比例臂和标准电阻使电桥平衡，测量未知电阻。", "电桥平衡时桥路电流为零，未知电阻由两对比例臂决定。"),
+      e("bridge-sensitivity", "电桥灵敏度与测量误差", "circuit", "S = Δα/(ΔR/R)", "测量不同电源电压和桥臂比例下的电桥灵敏度。", "电桥灵敏度表示电阻相对变化引起的检流计偏转，受电源、桥臂和仪表内阻影响。"),
+      e("rc-rl", "RC与RL一阶电路暂态响应", "rc", "uC(t)=U0e^(-t/RC)", "记录RC和RL充放电曲线并提取时间常数。", "储能元件状态不能突变，一阶电路按指数规律趋近稳态。"),
+      e("rlc", "RLC串联谐振与品质因数", "frequency", "f0=1/(2π√LC)", "测量谐振频率、带宽和品质因数。", "电感与电容在谐振时相互抵消，串联电流达到峰值。")
+    ]),
+    course("analog-electronics", 2, 1, "模拟电子技术实验", "二极管、晶体管、放大器、运放、滤波、振荡与电源", [
+      e("diode-characteristic", "二极管伏安特性", "semiconductor", "I = Is(e^(qU/kT)-1)", "测量硅二极管正向和反向伏安特性。", "PN结正向电流随电压近似指数增长，反向漏电流较小。"),
+      e("bjt-characteristic", "晶体管输入输出特性", "semiconductor", "IC = βIB", "测量BJT输入、输出特性并识别放大区。", "晶体管通过基极电流控制集电极电流，特性与偏置温度和负载有关。"),
+      e("common-emitter", "共射放大电路", "amplifier", "Au=-βRL'/rbe", "搭建共射放大器并测量静态工作点、增益、输入输出电阻和失真。", "共射电路具有电压放大和反相作用，静态工作点决定动态范围。"),
+      e("common-collector", "共集电极跟随器", "amplifier", "Av≈1", "测量电压跟随、输入阻抗和输出驱动能力。", "共集电路电压增益接近1，主要提供阻抗变换和电流驱动。"),
+      e("opamp-linear", "运算放大器线性应用", "amplifier", "Uo=Aod(U+-U-)", "搭建比例、求和、积分和差动电路。", "深度负反馈使运放满足虚短与虚断，闭环增益由外部网络决定。"),
+      e("active-filter", "有源滤波器与频率响应", "frequency", "H(jω)=Uo/Ui", "测量低通和高通有源滤波器幅频与相位响应。", "RC网络与运放的频率选择特性决定通带、截止频率和滚降。"),
+      e("sine-oscillator", "RC正弦波振荡器", "oscillator", "AF = 1", "观察起振、稳幅、频率和波形失真。", "正反馈满足幅值与相位条件时产生自激振荡。"),
+      e("regulated-supply", "整流滤波与稳压电源", "circuit", "Vout≈Vref(1+R1/R2)", "测量整流、滤波、稳压和纹波抑制。", "反馈稳压电路调整输出电压以抵抗输入和负载变化。")
+    ]),
+    course("digital-electronics", 2, 2, "数字电子技术实验", "逻辑门、组合时序、计数器、脉冲、ADC/DAC和数字系统", [
+      e("logic-gates", "逻辑门真值表与电气特性", "digital", "Y=f(A,B)", "测量与、或、非、异或门真值表和逻辑电平。", "逻辑门在规定电压区间把输入解释为0或1并产生稳定输出。"),
+      e("combinational", "组合逻辑与译码器设计", "digital", "Y=Σminterm", "根据真值表化简并用逻辑门、译码器实现组合逻辑。", "组合逻辑输出只由当前输入决定，可用布尔代数化简。"),
+      e("adder-comparator", "加法器、比较器与ALU", "digital", "S=A+B+Ci", "搭建半加器、全加器、比较器和简单算术逻辑单元。", "多比特数字运算由进位和布尔逻辑级联实现。"),
+      e("flip-flop", "触发器与寄存器", "digital", "Qnext=D", "测量D、JK触发器边沿触发和状态保持。", "触发器在有效时钟边沿更新状态，输出具有记忆功能。"),
+      e("counter", "计数器与分频器", "digital", "fout=fin/2^N", "设计同步计数器并观察状态序列、分频和毛刺。", "计数器由触发器与次态逻辑构成，按固定时钟序列循环。"),
+      e("timer-555", "555定时器与PWM", "oscillator", "T=0.693(R1+2R2)C", "搭建多谐振荡器并测量频率、占空比和PWM平均功率。", "555定时器通过电容阈值充放电形成周期脉冲。"),
+      e("adc-dac", "ADC/DAC与量化误差", "sampling", "LSB=Vref/2^N", "测量ADC码值和DAC阶梯输出，分析量化与线性误差。", "ADC将模拟范围离散量化，DAC将数字码重建为模拟电压。"),
+      e("digital-system", "小型数字系统综合设计", "digital", "State=f(Clock,Input)", "组合计数、显示、比较和译码模块完成数字系统。", "数字系统由时钟、寄存器、组合逻辑和接口构成。")
+    ])
+  ];
+  CATALOG.push(...ELECTRICAL_COURSES);
+
   const EXPERIMENTS = CATALOG.flatMap((semester) =>
     semester.experiments.map((experiment, index) => {
-      const defaults = SIM_DEFS[experiment.sim] || SIM_DEFS.design;
+      const defaults = SIM_DEFS[experiment.sim];
       return {
         ...experiment,
         year: semester.year,
@@ -330,20 +365,22 @@
         semesterId: semester.id,
         scope: "rail",
         index: index + 1,
-        sceneGuide: defaults.sceneGuide,
-        simInfo: defaults.simInfo,
-        primaryLabel: defaults.primaryLabel,
-        primaryUnit: defaults.primaryUnit,
-        primaryMin: defaults.primaryMin,
-        primaryMax: defaults.primaryMax,
-        primaryValue: defaults.primaryValue,
-        primaryStep: defaults.primaryStep,
-        secondaryLabel: defaults.secondaryLabel,
-        secondaryUnit: defaults.secondaryUnit,
-        secondaryMin: defaults.secondaryMin,
-        secondaryMax: defaults.secondaryMax,
-        secondaryValue: defaults.secondaryValue,
-        secondaryStep: defaults.secondaryStep
+        ...(defaults ? {
+          sceneGuide: defaults.sceneGuide,
+          simInfo: defaults.simInfo,
+          primaryLabel: defaults.primaryLabel,
+          primaryUnit: defaults.primaryUnit,
+          primaryMin: defaults.primaryMin,
+          primaryMax: defaults.primaryMax,
+          primaryValue: defaults.primaryValue,
+          primaryStep: defaults.primaryStep,
+          secondaryLabel: defaults.secondaryLabel,
+          secondaryUnit: defaults.secondaryUnit,
+          secondaryMin: defaults.secondaryMin,
+          secondaryMax: defaults.secondaryMax,
+          secondaryValue: defaults.secondaryValue,
+          secondaryStep: defaults.secondaryStep
+        } : {})
       };
     })
   );
@@ -363,7 +400,7 @@
         ],
         variables: `${experiment.formula}。报告应说明各符号单位、测点位置、采样频率和数据筛选规则。`,
         caution: "遵守中南大学实验室安全规定；加载、开挖、高处测量和电气设备操作必须在指导教师确认后进行。",
-        observations: defaults.sceneGuide.attention + " 实验内容属于本科教学框架，具体项目与开设学期以中南大学土木工程学院当年教学安排为准。"
+        observations: (defaults.sceneGuide?.attention || "观察输入输出波形、电学量关系、工作区间和异常响应。") + " 实验内容属于本科教学框架，具体项目与开设学期以中南大学土木工程学院当年教学安排为准。"
       };
     });
   });
