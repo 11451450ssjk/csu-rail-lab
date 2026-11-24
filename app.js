@@ -684,6 +684,145 @@ function renderOperationProfile(experiment = currentExperiment()) {
   updateProgress();
 }
 
+function recordSheetKey(experimentId) {
+  return `csu_rail_record_sheet_${experimentId}`;
+}
+
+function emptyRecordSheet(experiment) {
+  return {
+    date: new Date().toISOString().slice(0, 10),
+    operator: "",
+    instrumentId: "",
+    condition: "",
+    rows: Array.from({ length: 5 }, (_, index) => ({
+      x: "",
+      y: "",
+      condition: "",
+      note: `第 ${index + 1} 次`
+    }))
+  };
+}
+
+function loadRecordSheet(experiment) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(recordSheetKey(experiment.id)) || "null");
+    if (stored && Array.isArray(stored.rows) && stored.rows.length) return stored;
+  } catch {
+    // Use a fresh record sheet when browser storage is unavailable.
+  }
+  return emptyRecordSheet(experiment);
+}
+
+function saveRecordSheet(experiment, sheet) {
+  try {
+    localStorage.setItem(recordSheetKey(experiment.id), JSON.stringify(sheet));
+  } catch {
+    showToast("浏览器无法保存原始记录草稿");
+  }
+}
+
+function readRecordSheetForm(experiment) {
+  const sheet = {
+    date: document.getElementById("record-date").value,
+    operator: document.getElementById("record-operator").value.trim(),
+    instrumentId: document.getElementById("record-instrument-id").value.trim(),
+    condition: document.getElementById("record-condition").value.trim(),
+    rows: [...document.querySelectorAll("[data-record-row]")].map((row) => ({
+      x: row.querySelector('[data-record-field="x"]').value.trim(),
+      y: row.querySelector('[data-record-field="y"]').value.trim(),
+      condition: row.querySelector('[data-record-field="condition"]').value.trim(),
+      note: row.querySelector('[data-record-field="note"]').value.trim()
+    }))
+  };
+  saveRecordSheet(experiment, sheet);
+  return sheet;
+}
+
+function renderOriginalRecordSheet(experiment = currentExperiment()) {
+  const info = simInfo(experiment);
+  const sheet = loadRecordSheet(experiment);
+  document.getElementById("record-date").value = sheet.date || new Date().toISOString().slice(0, 10);
+  document.getElementById("record-operator").value = sheet.operator || "";
+  document.getElementById("record-instrument-id").value = sheet.instrumentId || "";
+  document.getElementById("record-condition").value = sheet.condition || "";
+  const table = document.getElementById("manual-record-table");
+  table.querySelector("thead").innerHTML = `
+    <tr>
+      <th>序号</th>
+      <th>${escapeHtml(info.xLabel)}</th>
+      <th>${escapeHtml(info.yLabel)}</th>
+      <th>测量条件</th>
+      <th>现象 / 备注</th>
+    </tr>
+  `;
+  table.querySelector("tbody").innerHTML = sheet.rows.map((row, index) => `
+    <tr data-record-row="${index}">
+      <td>${index + 1}</td>
+      <td><input data-record-field="x" type="number" step="any" value="${escapeHtml(row.x)}" aria-label="${escapeHtml(info.xLabel)}"></td>
+      <td><input data-record-field="y" type="number" step="any" value="${escapeHtml(row.y)}" aria-label="${escapeHtml(info.yLabel)}"></td>
+      <td><input data-record-field="condition" type="text" value="${escapeHtml(row.condition)}" aria-label="测量条件"></td>
+      <td><input data-record-field="note" type="text" value="${escapeHtml(row.note)}" aria-label="现象或备注"></td>
+    </tr>
+  `).join("");
+  table.querySelectorAll("input").forEach((input) => {
+    input.addEventListener("input", () => {
+      readRecordSheetForm(experiment);
+      document.getElementById("record-sheet-status").textContent = "草稿已保存。";
+    });
+  });
+  [
+    "record-date",
+    "record-operator",
+    "record-instrument-id",
+    "record-condition"
+  ].forEach((id) => {
+    document.getElementById(id).oninput = () => {
+      readRecordSheetForm(experiment);
+      document.getElementById("record-sheet-status").textContent = "草稿已保存。";
+    };
+  });
+  document.getElementById("record-sheet-status").textContent = "至少填写两组有效数据后才能生成报告。";
+  document.getElementById("add-record-row").onclick = () => {
+    const current = readRecordSheetForm(experiment);
+    current.rows.push({ x: "", y: "", condition: "", note: `第 ${current.rows.length + 1} 次` });
+    saveRecordSheet(experiment, current);
+    renderOriginalRecordSheet(experiment);
+  };
+  document.getElementById("fill-record-demo").onclick = () => {
+    const sample = createSampleCsv(experiment, { points: 6, noise: 2, outliers: 0 });
+    const sampleRows = sample.csv.split(/\r?\n/).slice(1, 7).map((line) => line.split(","));
+    const current = readRecordSheetForm(experiment);
+    current.rows = sampleRows.map((row, index) => ({
+      x: row[0],
+      y: row[1],
+      condition: `模型参数 ${index + 1}`,
+      note: "练习记录"
+    }));
+    saveRecordSheet(experiment, current);
+    renderOriginalRecordSheet(experiment);
+    document.getElementById("record-sheet-status").textContent = "已生成 6 行练习记录，可修改后生成报告。";
+  };
+  document.getElementById("generate-record-report").onclick = () => {
+    const current = readRecordSheetForm(experiment);
+    const validRows = current.rows.filter((row) => row.x !== "" && row.y !== "" && Number.isFinite(Number(row.x)) && Number.isFinite(Number(row.y)));
+    if (validRows.length < 2) {
+      showToast("原始记录至少需要两组有效数据");
+      return;
+    }
+    const csv = [
+      [info.xLabel.replaceAll(",", " "), info.yLabel.replaceAll(",", " "), "Condition", "Note"].join(","),
+      ...validRows.map((row) => [row.x, row.y, `"${row.condition.replaceAll('"', '""')}"`, `"${row.note.replaceAll('"', '""')}"`].join(","))
+    ].join("\n");
+    const batchInput = document.getElementById("batch-name");
+    if (!batchInput.value.trim()) {
+      batchInput.value = `原始记录-${current.date || "未标日期"}${current.operator ? `-${current.operator}` : ""}`;
+    }
+    ingestData(csv, `原始记录_${experiment.name}_${current.date || "未标日期"}.csv`);
+    showToast("原始记录已生成新的实验报告");
+    document.getElementById("data-section").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+}
+
 function sceneGuide(experiment = currentExperiment()) {
   return experiment.sceneGuide || SCENE_GUIDES[experiment.sim] || {
     action: "实验模型根据当前参数实时计算并显示响应",
@@ -2875,6 +3014,8 @@ function selectExperiment(experimentId, scrollToLab = false) {
   ].join("");
   updateSimulationStory();
   renderOperationProfile(experiment);
+  renderOriginalRecordSheet(experiment);
+  window.OscilloscopeStudio?.setVisible(experiment.id === "rail-oscilloscope-lissajous");
   primaryControl.min = config.primary.min;
   primaryControl.max = config.primary.max;
   primaryControl.step = config.primary.step;
